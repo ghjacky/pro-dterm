@@ -1,0 +1,58 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: swagger-deployment
+  namespace: default
+  labels:
+    app: swagger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: swagger
+  template:
+    metadata:
+      labels:
+        app: swagger
+    spec:
+      containers:
+        - name: swagger
+          image: swaggerapi/swagger-ui
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SWAGGER_JSON
+              value: "/apis/k8s.json"
+          resources:
+            requests:
+              memory: "50Mi"
+              cpu: 100m
+            limits:
+              memory: "50Mi"
+              cpu: 100m
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - mountPath: /apis
+              name: apis
+      volumes:
+        - name: apis
+          hostPath:
+            path: "/data/swagger/apis"
+            type: Directory
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: swagger-service
+  namespace: default
+spec:
+  type: NodePort
+  selector:
+    app: swagger
+  ports:
+    - protocol: TCP
+      port: 30001
+      targetPort: 8080
+      nodePort: 30001

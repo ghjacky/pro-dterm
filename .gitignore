@@ -1,0 +1,7 @@
+configs/*
+!configs/sample.toml
+build/*
+!build/build.sh
+!build/Dockerfile
+doc
+**.log

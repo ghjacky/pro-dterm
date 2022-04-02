@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logsapp
+  namespace: default
+  labels:
+    app: logsapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: logsapp
+  template:
+    metadata:
+      labels:
+        app: logsapp
+    spec:
+      containers:
+        - name: logsapp
+          image: dev-myapp.local/dterm
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: 100m
+              memory: "50Mi"
+            limits:
+              cpu: 100m
+              memory: "50Mi"
+
+          ports:
+            - containerPort: 3000

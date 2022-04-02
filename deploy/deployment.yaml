@@ -1,0 +1,31 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dterm-deployment
+  namespace: default
+  labels:
+    app: dterm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dterm
+  template:
+    metadata:
+      labels:
+        app: dterm
+    spec:
+      containers:
+        - name: dterm
+          image: dev-myapp.local/dterm
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              memory: "50Mi"
+              cpu: 100m
+            limits:
+              memory: "50Mi"
+              cpu: 100m
+          ports:
+            - containerPort: 3000
