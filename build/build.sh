@@ -4,7 +4,7 @@ rm dterm dterm.tgz 2> /dev/null
 
 cd ..
 
-GOOS=linux GOARCH=amd64 go build -o dterm
+GOOS=linux GOARCH=amd64 go build -o dterm *.go
 
 
 tar zcvf dterm.tgz dterm configs
