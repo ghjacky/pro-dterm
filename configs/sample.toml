@@ -8,14 +8,19 @@ max_size = 100
 max_age = 2
 max_backups = 10
 
-[mysql]
-host = "127.0.0.1"
-port = 3306
-database = "dterm"
-user = "root"
-password = ""
+[easy]
+schema = "http"
+domain = "127.0.0.1:10081"
+api_check_token = "/api_check_token"
 
-[redis]
-addr = "127.0.0.1"
-db = 0
-password = ""
+# [mysql]
+# host = "127.0.0.1"
+# port = 3306
+# database = "dterm"
+# user = "root"
+# password = ""
+
+# [redis]
+# addr = "127.0.0.1"
+# db = 0
+# password = ""

@@ -20,7 +20,7 @@ func NewDContainer(dproxy string) *DContainer {
 	}
 }
 
-func (c *DContainer) GetByIp(ip string) error {
+func (c *DContainer) GetByName(name string) error {
 	if c.DC == nil {
 		return errors.New("nil docker client")
 	}
@@ -28,11 +28,11 @@ func (c *DContainer) GetByIp(ip string) error {
 		Filters: filters.NewArgs(
 			filters.KeyValuePair{
 				Key:   "name",
-				Value: ip,
+				Value: name,
 			},
 		),
 	}); err != nil {
-		base.Log.Errorf("failed to get container by ip(%s): %s", ip, err.Error())
+		base.Log.Errorf("failed to get container(%s): %s", name, err.Error())
 		return err
 	} else {
 		c.Containers = cs

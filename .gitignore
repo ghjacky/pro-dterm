@@ -5,3 +5,4 @@ build/*
 !build/Dockerfile
 doc
 **.log
+__debug_bin

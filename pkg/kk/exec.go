@@ -7,6 +7,7 @@ import (
 	"dterm/pkg/internal/ws"
 	"errors"
 	"io"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/gorilla/websocket"
@@ -17,7 +18,7 @@ func StreamContainerShell(conn *websocket.Conn, name string, dproxy string) erro
 	var wsc = ws.NewWSConn(conn, websocket.TextMessage)
 	defer wsc.Close()
 	var dc = NewDContainer(dproxy)
-	if err := dc.GetByIp(name); err != nil {
+	if err := dc.GetByName(name); err != nil {
 		base.Log.Errorf("failed to get container by name(%s): %s", name, err.Error())
 		return err
 	}
@@ -25,7 +26,10 @@ func StreamContainerShell(conn *websocket.Conn, name string, dproxy string) erro
 		return errors.New("no avaliable containers")
 	}
 	var exechandler = pty.NewKExecSessionHandler(wsc)
-	defer exechandler.Close()
+	defer func() {
+		exechandler.Write([]byte("Connection closed !"))
+		exechandler.Close()
+	}()
 	if err := dc.streamExec(dc.Containers[0].ID, exechandler); err != nil {
 		base.Log.Errorf("failed to get exec stream: %s", err.Error())
 		return err
@@ -35,7 +39,7 @@ func StreamContainerShell(conn *websocket.Conn, name string, dproxy string) erro
 
 func (c *DContainer) streamExec(container string, session pty.PTY) error {
 	id, err := c.DC.Client.ContainerExecCreate(context.Background(), container, types.ExecConfig{
-		User:         "root",
+		User:         "sguser",
 		Privileged:   true,
 		Tty:          true,
 		AttachStdin:  true,
@@ -43,8 +47,8 @@ func (c *DContainer) streamExec(container string, session pty.PTY) error {
 		AttachStderr: true,
 		Detach:       true,
 		DetachKeys:   "ctrl-p,ctrl-q",
-		Cmd:          []string{"/bin/sh", "-i"},
-		WorkingDir:   "/tmp",
+		Cmd:          []string{"/bin/bash", "-i"},
+		WorkingDir:   "/data/log",
 	})
 	if err != nil {
 		base.Log.Errorf("failed to bind shell to container(%s): %s", container, err.Error())
@@ -56,7 +60,15 @@ func (c *DContainer) streamExec(container string, session pty.PTY) error {
 		base.Log.Errorf("failed to attach exec with id(%s): %s", id.ID, err.Error())
 		return err
 	}
-	defer att.Close()
+	defer func() {
+		// EXIT EXEC SHELL
+		att.Conn.Write([]byte{'\003'})
+		time.Sleep(1*time.Second)
+		att.Conn.Write([]byte{13, 10})
+		time.Sleep(1*time.Second)
+		att.Conn.Write([]byte{'\004'})
+		att.Close()
+	}()
 
 	var errChan = make(chan error, 2)
 	go func() {
