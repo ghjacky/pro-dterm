@@ -18,6 +18,11 @@ func StreamContainerShell(conn *websocket.Conn, name string, dproxy string) erro
 	var wsc = ws.NewWSConn(conn, websocket.TextMessage)
 	defer wsc.Close()
 	var dc = NewDContainer(dproxy)
+	defer func(){
+		if dc.Client != nil {
+			dc.Client.Close()
+		}
+	}()
 	if err := dc.GetByName(name); err != nil {
 		base.Log.Errorf("failed to get container by name(%s): %s", name, err.Error())
 		return err
@@ -40,12 +45,12 @@ func StreamContainerShell(conn *websocket.Conn, name string, dproxy string) erro
 func (c *DContainer) streamExec(container string, session pty.PTY) error {
 	id, err := c.DC.Client.ContainerExecCreate(context.Background(), container, types.ExecConfig{
 		User:         "sguser",
-		Privileged:   true,
+		Privileged:   false,
 		Tty:          true,
 		AttachStdin:  true,
 		AttachStdout: true,
 		AttachStderr: true,
-		Detach:       true,
+		Detach:       false,
 		DetachKeys:   "ctrl-p,ctrl-q",
 		Cmd:          []string{"/bin/bash", "-i"},
 		WorkingDir:   "/data/log",
@@ -54,7 +59,6 @@ func (c *DContainer) streamExec(container string, session pty.PTY) error {
 		base.Log.Errorf("failed to bind shell to container(%s): %s", container, err.Error())
 		return err
 	}
-
 	att, err := c.DC.Client.ContainerExecAttach(context.Background(), id.ID, types.ExecStartCheck{Detach: false, Tty: true})
 	if err != nil {
 		base.Log.Errorf("failed to attach exec with id(%s): %s", id.ID, err.Error())
@@ -67,6 +71,7 @@ func (c *DContainer) streamExec(container string, session pty.PTY) error {
 		att.Conn.Write([]byte{13, 10})
 		time.Sleep(1*time.Second)
 		att.Conn.Write([]byte{'\004'})
+		att.CloseWrite()
 		att.Close()
 	}()
 

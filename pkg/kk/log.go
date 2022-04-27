@@ -15,6 +15,11 @@ func StreamContainerLog(conn *websocket.Conn, name string, dproxy string) error 
 	var wsc = ws.NewWSConn(conn, websocket.TextMessage)
 	defer wsc.Close()
 	var dc = NewDContainer(dproxy)
+	defer func() {
+		if dc.Client != nil {
+			dc.Client.Close()
+		}
+	}()
 	if err := dc.GetByName(name); err != nil {
 		base.Log.Errorf("failed to get container by name(%s): %s", name, err.Error())
 		return err
