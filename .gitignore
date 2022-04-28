@@ -4,5 +4,7 @@ build/*
 !build/build.sh
 !build/Dockerfile
 doc
+dterm
+dproxy
 **.log
 __debug_bin

@@ -44,11 +44,10 @@ func (wsc *WSConn) Close() error {
 }
 
 func (wsc *WSConn) Read(p []byte) (int, error) {
-	mt, _p, err := wsc.ReadMessage()
+	_, _p, err := wsc.ReadMessage()
 	if err != nil {
 		return 0, err
 	} else {
-		wsc.MessageType = mt
 		return copy(p, _p), nil
 	}
 }

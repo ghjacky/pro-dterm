@@ -15,10 +15,10 @@ import (
 
 func StreamContainerShell(conn *websocket.Conn, name string, dproxy string) error {
 
-	var wsc = ws.NewWSConn(conn, websocket.TextMessage)
+	var wsc = ws.NewWSConn(conn, websocket.BinaryMessage)
 	defer wsc.Close()
 	var dc = NewDContainer(dproxy)
-	defer func(){
+	defer func() {
 		if dc.Client != nil {
 			dc.Client.Close()
 		}
@@ -53,7 +53,7 @@ func (c *DContainer) streamExec(container string, session pty.PTY) error {
 		Detach:       false,
 		DetachKeys:   "ctrl-p,ctrl-q",
 		Cmd:          []string{"/bin/bash", "-i"},
-		WorkingDir:   "/data/log",
+		WorkingDir:   "/tmp",
 	})
 	if err != nil {
 		base.Log.Errorf("failed to bind shell to container(%s): %s", container, err.Error())
@@ -67,11 +67,10 @@ func (c *DContainer) streamExec(container string, session pty.PTY) error {
 	defer func() {
 		// EXIT EXEC SHELL
 		att.Conn.Write([]byte{'\003'})
-		time.Sleep(1*time.Second)
+		time.Sleep(100 * time.Millisecond)
 		att.Conn.Write([]byte{13, 10})
-		time.Sleep(1*time.Second)
+		time.Sleep(100 * time.Millisecond)
 		att.Conn.Write([]byte{'\004'})
-		att.CloseWrite()
 		att.Close()
 	}()
 
