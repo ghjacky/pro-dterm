@@ -4,6 +4,8 @@ import (
 	"dterm/base"
 	"dterm/pkg/internal/ws"
 	"encoding/json"
+	"fmt"
+	"sync"
 
 	"k8s.io/client-go/tools/remotecommand"
 )
@@ -18,7 +20,11 @@ type KExecSessionHandler struct {
 	clientSocket *ws.WSConn
 	done         chan struct{}
 	// buffer       *stream.StreamBuffer
-	message *KExecSessionMessage
+	message       *KExecSessionMessage
+	cmdParser     *StreamParser
+	recorder      *Recorder
+	startParser   sync.Once
+	startRecorder sync.Once
 }
 
 type KExecSessionMessage struct {
@@ -39,13 +45,17 @@ func (kesm *KExecSessionMessage) Parse(p []byte) error {
 	return nil
 }
 
-func NewKExecSessionHandler(wsConn *ws.WSConn) *KExecSessionHandler {
+func NewKExecSessionHandler(wsConn *ws.WSConn, username, instance string) *KExecSessionHandler {
 	return &KExecSessionHandler{
 		sizeChan:     make(chan *remotecommand.TerminalSize),
 		clientSocket: wsConn,
 		done:         make(chan struct{}),
 		// buffer:       stream.NewStreamBuffer(BufferCap),
-		message: &KExecSessionMessage{},
+		message:       &KExecSessionMessage{},
+		cmdParser:     NewStreamParser(),
+		recorder:      NewRecorder(username, instance),
+		startParser:   sync.Once{},
+		startRecorder: sync.Once{},
 	}
 }
 
@@ -60,6 +70,7 @@ func (kesh *KExecSessionHandler) Next() *remotecommand.TerminalSize {
 				return s
 			}
 		case <-kesh.done:
+			kesh.recorder.Done <- struct{}{}
 			return nil
 		}
 	}
@@ -87,12 +98,20 @@ func (kesh *KExecSessionHandler) Read(p []byte) (int, error) {
 		kesh.sizeChan <- &kesh.message.TermSize
 		return 0, nil
 	} else {
+		fmt.Printf("[input] - : %s\n\n", string(kesh.message.Raw))
 		return copy(p, kesh.message.Raw), nil
 	}
 }
 
 // Write for k8s exec session stdout\stderr, write message to client socket (p -> buffer -> clientSocket)
 func (kesh *KExecSessionHandler) Write(p []byte) (int, error) {
+	kesh.startRecorder.Do(func() {
+		go kesh.recorder.AutoFlushInBg()
+	})
+	fmt.Printf("%02x\n", p)
+	fmt.Printf("[output] - : %s\n\n", string(p))
+	_p := p[:]
+	go kesh.recorder.Write(_p)
 	return kesh.clientSocket.Write(p)
 }
 
@@ -104,5 +123,6 @@ func (kesh *KExecSessionHandler) Close() error {
 	}()
 	close(kesh.sizeChan)
 	kesh.done <- struct{}{}
+	base.Log.Infof("connection closed (user: %s - instance: %s)", kesh.recorder.Username, kesh.recorder.Instance)
 	return kesh.clientSocket.Close()
 }

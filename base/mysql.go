@@ -15,10 +15,11 @@ type MysqlConfiguration struct {
 	Password string
 }
 
-var Db *gorm.DB
+var db *gorm.DB
 
 func initMysql() {
-	db, err := gorm.Open(
+	var err error
+	db, err = gorm.Open(
 		mysql.Open(fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 			Conf.MysqlConfiguration.User,
 			Conf.MysqlConfiguration.Password,
@@ -30,14 +31,17 @@ func initMysql() {
 	if err != nil {
 		Log.Fatalf("mysql connect failed: %s", err.Error())
 	}
-	Db = db.Debug()
 }
 
+func DB() *gorm.DB{
+	return db
+}
 func closeDB() {
+
 }
 
-func MigrateDB(db ...interface{}) {
-	if err := Db.Set("gorm:table_options", "CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci").AutoMigrate(db...); err != nil {
+func MigrateDB(dbs ...interface{}) {
+	if err := db.Set("gorm:table_options", "CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci").AutoMigrate(dbs...); err != nil {
 		Log.Fatal(err.Error())
 	}
 }

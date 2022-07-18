@@ -15,7 +15,8 @@ type Configuration struct {
 }
 
 type MainConfiguration struct {
-	Listen string
+	Listen  string
+	DataDir string
 }
 
 type EasyConfiguration struct {
@@ -36,7 +37,7 @@ func (c *Configuration) Parse() {
 	}
 	log.Printf("using config file: %s", c.Path)
 	Conf.MainConfiguration.Listen = viper.GetString("main.listen")
-
+	Conf.MainConfiguration.DataDir = viper.GetString("main.data_dir")
 	Conf.EasyConfiguration.Schema = viper.GetString("easy.schema")
 	Conf.EasyConfiguration.Domain = viper.GetString("easy.domain")
 	Conf.EasyConfiguration.ApiCheckToken = viper.GetString("easy.api_check_token")

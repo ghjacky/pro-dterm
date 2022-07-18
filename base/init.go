@@ -3,6 +3,6 @@ package base
 func Init() {
 	Conf.Parse()
 	initLog()
-	// initMysql()
+	initMysql()
 	// initRedis()
 }

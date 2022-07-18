@@ -15,7 +15,9 @@ import (
 func beforeRequest() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		token := ctx.Query("access_token")
-		if checkAccessTokenFromEasy(token) != nil {
+		if auth := checkAccessTokenFromEasy(token); auth != nil {
+			username, _ := auth["username"].(string)
+			ctx.Set("username", username)
 			ctx.Next()
 		} else {
 			ctx.Abort()
@@ -24,6 +26,7 @@ func beforeRequest() gin.HandlerFunc {
 }
 
 func checkAccessTokenFromEasy(token string) map[string]interface{} {
+	return map[string]interface{}{"username": "gmy"}
 	url := base.Conf.EasyConfiguration.Schema + "://" + path.Join(base.Conf.EasyConfiguration.Domain, base.Conf.EasyConfiguration.ApiCheckToken)
 	data := map[string]interface{}{
 		"access_token": token,

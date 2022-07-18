@@ -2,7 +2,7 @@ package server
 
 import "github.com/gin-gonic/gin"
 
-func newResponse(code int, message string, data map[string]interface{}, extras ...map[string]interface{}) interface{} {
+func newResponse(code int, message string, data interface{}, extras ...map[string]interface{}) interface{} {
 	var d = map[string]interface{}{
 		"code":    code,
 		"message": message,
@@ -18,9 +18,10 @@ func newResponse(code int, message string, data map[string]interface{}, extras .
 }
 
 func httpRoutes(r *gin.Engine) {
-	tr := r.Group("test")
+	tr := r.Group("/api/recorder")
 	{
-		tr.GET("", testHttpGet)
+		tr.GET("", fetchRecords)
+		tr.GET("/:id", getRecord)
 	}
 }
 

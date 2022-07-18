@@ -3,7 +3,7 @@ package kk
 import (
 	"context"
 	"dterm/base"
-	"dterm/pkg/internal/pty.go"
+	"dterm/pkg/internal/pty"
 	"dterm/pkg/internal/ws"
 	"errors"
 	"io"
@@ -13,7 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-func StreamContainerShell(conn *websocket.Conn, name string, dproxy string) error {
+func StreamContainerShell(conn *websocket.Conn, name string, dproxy string, username string) error {
 
 	var wsc = ws.NewWSConn(conn, websocket.BinaryMessage)
 	defer wsc.Close()
@@ -30,7 +30,7 @@ func StreamContainerShell(conn *websocket.Conn, name string, dproxy string) erro
 	if len(dc.Containers) < 1 {
 		return errors.New("no avaliable containers")
 	}
-	var exechandler = pty.NewKExecSessionHandler(wsc)
+	var exechandler = pty.NewKExecSessionHandler(wsc, username, name)
 	defer func() {
 		exechandler.Write([]byte("Connection closed !"))
 		exechandler.Close()
@@ -44,7 +44,7 @@ func StreamContainerShell(conn *websocket.Conn, name string, dproxy string) erro
 
 func (c *DContainer) streamExec(container string, session pty.PTY) error {
 	id, err := c.DC.Client.ContainerExecCreate(context.Background(), container, types.ExecConfig{
-		User:         "sguser",
+		User:         "root",
 		Privileged:   false,
 		Tty:          true,
 		AttachStdin:  true,
@@ -52,7 +52,7 @@ func (c *DContainer) streamExec(container string, session pty.PTY) error {
 		AttachStderr: true,
 		Detach:       false,
 		DetachKeys:   "ctrl-p,ctrl-q",
-		Cmd:          []string{"/bin/bash", "-i"},
+		Cmd:          []string{"/bin/sh", "-i"},
 		WorkingDir:   "/tmp",
 	})
 	if err != nil {
