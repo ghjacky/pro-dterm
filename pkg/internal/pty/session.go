@@ -4,7 +4,6 @@ import (
 	"dterm/base"
 	"dterm/pkg/internal/ws"
 	"encoding/json"
-	"fmt"
 	"sync"
 
 	"k8s.io/client-go/tools/remotecommand"
@@ -71,6 +70,7 @@ func (kesh *KExecSessionHandler) Next() *remotecommand.TerminalSize {
 			}
 		case <-kesh.done:
 			kesh.recorder.Done <- struct{}{}
+			kesh.cmdParser.done <- struct{}{}
 			return nil
 		}
 	}
@@ -98,7 +98,8 @@ func (kesh *KExecSessionHandler) Read(p []byte) (int, error) {
 		kesh.sizeChan <- &kesh.message.TermSize
 		return 0, nil
 	} else {
-		fmt.Printf("[input] - : %s\n\n", string(kesh.message.Raw))
+		// fmt.Printf("[input] - : %s\n\n", string(kesh.message.Raw))
+		go kesh.cmdParser.rcvInRaw(kesh.message.Raw)
 		return copy(p, kesh.message.Raw), nil
 	}
 }
@@ -108,10 +109,14 @@ func (kesh *KExecSessionHandler) Write(p []byte) (int, error) {
 	kesh.startRecorder.Do(func() {
 		go kesh.recorder.AutoFlushInBg()
 	})
-	fmt.Printf("%02x\n", p)
-	fmt.Printf("[output] - : %s\n\n", string(p))
+	kesh.startParser.Do(func() {
+		go kesh.cmdParser.StartParse()
+	})
+	// fmt.Printf("%02x\n", p)
+	// fmt.Printf("[output] - : %s\n\n", string(p))
 	_p := p[:]
 	go kesh.recorder.Write(_p)
+	go kesh.cmdParser.rcvOutRaw(_p)
 	return kesh.clientSocket.Write(p)
 }
 
