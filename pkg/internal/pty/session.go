@@ -51,7 +51,7 @@ func NewKExecSessionHandler(wsConn *ws.WSConn, username, instance string) *KExec
 		done:         make(chan struct{}),
 		// buffer:       stream.NewStreamBuffer(BufferCap),
 		message:       &KExecSessionMessage{},
-		cmdParser:     NewStreamParser(),
+		cmdParser:     NewStreamParser(username, instance),
 		recorder:      NewRecorder(username, instance),
 		startParser:   sync.Once{},
 		startRecorder: sync.Once{},
@@ -111,6 +111,7 @@ func (kesh *KExecSessionHandler) Write(p []byte) (int, error) {
 	})
 	kesh.startParser.Do(func() {
 		go kesh.cmdParser.StartParse()
+		go kesh.cmdParser.StartRecordCmdInBg()
 	})
 	// fmt.Printf("%02x\n", p)
 	// fmt.Printf("[output] - : %s\n\n", string(p))

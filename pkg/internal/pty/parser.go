@@ -3,9 +3,11 @@ package pty
 import (
 	"bytes"
 	"dterm/base"
+	"dterm/model"
 	"fmt"
 	"regexp"
 	"strconv"
+	"time"
 )
 
 const (
@@ -64,27 +66,36 @@ type cmd struct {
 	result           []byte
 	currsorPositions [2]uint16
 	prompt           []byte
+	done             chan struct{}
 }
 
 type StreamParser struct {
-	inChan  chan []byte
-	outChan chan []byte
-	mode    chan uint8
-	done    chan struct{}
+	inChan   chan []byte
+	outChan  chan []byte
+	mode     chan uint8
+	done     chan struct{}
+	cmdChan  chan model.MCommand
+	username string
+	instance string
 	cmd
 }
 
-func NewStreamParser() *StreamParser {
+func NewStreamParser(username, instance string) *StreamParser {
 	mod := make(chan uint8, 1)
 	mod <- ModeInitial
 	return &StreamParser{
-		inChan:  make(chan []byte),
-		outChan: make(chan []byte),
-		mode:    mod,
-		done:    make(chan struct{}),
+		inChan:   make(chan []byte),
+		outChan:  make(chan []byte),
+		mode:     mod,
+		done:     make(chan struct{}),
+		cmdChan:  make(chan model.MCommand, 100),
+		username: username,
+		instance: instance,
 		cmd: cmd{
-			command: make([]byte, 0),
-			result:  make([]byte, 0),
+			command:          make([]byte, 0),
+			result:           make([]byte, 0),
+			currsorPositions: [2]uint16{0, 0},
+			done:             make(chan struct{}),
 		},
 	}
 }
@@ -99,6 +110,19 @@ func (sp *StreamParser) rcvInRaw(p []byte) {
 
 func (sp *StreamParser) rcvOutRaw(p []byte) {
 	sp.outChan <- p
+}
+
+func (sp *StreamParser) StartRecordCmdInBg() {
+	for {
+		select {
+		case mcmd := <-sp.cmdChan:
+			if err := mcmd.Add(); err != nil {
+				base.Log.Errorf("failed to record command to db")
+			}
+		case <-sp.cmd.done:
+			return
+		}
+	}
 }
 
 func (sp *StreamParser) lifecycle() {
@@ -118,6 +142,7 @@ func (sp *StreamParser) lifecycle() {
 				base.Log.Errorf("Unknown lifecycle: %s", sp.mode)
 			}
 		case <-sp.done:
+			sp.cmd.done <- struct{}{}
 			return
 		}
 	}
@@ -193,10 +218,9 @@ func (sp *StreamParser) handleWaitingExec() {
 	for {
 		out := <-sp.outChan
 		if isRequestForCursorPosition(out) {
-			sp.calcCommand()
 			sp.appendResult(escapeControlCharacters(out))
+			sp.calcCmd()
 			sp.initCursorPosition(sp.waitForCursorPosition().Column)
-			sp.calcResult()
 			sp.resetCommand()
 			sp.resetResult()
 			sp.initCommand()
@@ -206,9 +230,9 @@ func (sp *StreamParser) handleWaitingExec() {
 			sp.appendResult(out)
 			continue
 		} else if enterVim(out) || enterTopLikeMode(out) {
-			sp.calcCommand()
-			sp.resetCommand()
 			sp.resetResult()
+			sp.calcCmd()
+			sp.resetCommand()
 			sp.initCommand()
 			sp.setMode(ModeVim)
 			break
@@ -232,6 +256,31 @@ func (sp *StreamParser) handleVim() {
 			}
 		}
 	}
+}
+
+func (sp *StreamParser) calcCmd() {
+	defer sp.initCommand()
+	defer sp.resetResult()
+	c := model.MCommand{
+		Username: sp.username,
+		Instance: sp.instance,
+	}
+	if sp.currentCursorPosition() <= sp.lastCursorPosition() {
+		return
+	}
+	sp.cmd.command = sp.cmd.command[sp.lastCursorPosition():sp.currentCursorPosition()]
+	ls := bytes.Split(sp.cmd.result, NewLineKey)
+	if len(ls) >= 2 {
+		sp.setPrompt(ls[len(ls)-1])
+	} else {
+		return
+	}
+	r := bytes.TrimLeft(bytes.Join(ls[:len(ls)-1], NewLineKey), string(NewLineKey))
+	c.Command = string(sp.cmd.command)
+	c.Result = string(r)
+	c.At = time.Now().Local().UnixNano()
+	c.TX = base.DB()
+	sp.cmdChan <- c
 }
 
 type cursorPosition struct {
@@ -304,13 +353,7 @@ func (sp *StreamParser) delCharInCommand() {
 	sp.setCommand(append(sp.cmd.command[:sp.currentCursorPosition()-1], sp.cmd.command[sp.currentCursorPosition():]...))
 	sp.setCurrentCursorPosition(sp.currentCursorPosition() - 1)
 }
-func (sp *StreamParser) calcCommand() {
-	defer sp.initCommand()
-	if sp.currentCursorPosition() > sp.lastCursorPosition() {
-		sp.cmd.command = sp.cmd.command[sp.lastCursorPosition():sp.currentCursorPosition()]
-		fmt.Printf("[Command] - %s\n\n", sp.cmd.command)
-	}
-}
+
 func (sp *StreamParser) setMode(mode uint8) {
 	sp.mode <- mode
 }
@@ -336,19 +379,6 @@ func (sp *StreamParser) resetResult() {
 }
 func (sp *StreamParser) appendResult(p []byte) {
 	sp.cmd.result = append(sp.cmd.result, p...)
-}
-func (sp *StreamParser) calcResult() {
-	defer sp.resetResult()
-	ls := bytes.Split(sp.cmd.result, NewLineKey)
-	if len(ls) >= 2 {
-		sp.setPrompt(ls[len(ls)-1])
-	} else {
-		return
-	}
-	r := bytes.TrimLeft(bytes.Join(ls[:len(ls)-1], NewLineKey), string(NewLineKey))
-	if len(r) > 0 {
-		fmt.Printf("[Result] - %s\n\n", r)
-	}
 }
 
 func isPrintableCharacter(p []byte) bool {

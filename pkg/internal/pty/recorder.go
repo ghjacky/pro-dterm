@@ -5,6 +5,7 @@ import (
 	"dterm/model"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path"
 	"regexp"
@@ -27,9 +28,13 @@ type Recorder struct {
 	Filepath string
 }
 
+func generateFilename() string {
+	return fmt.Sprintf("%d_%s", time.Now().Local().Unix(), uuid.New().String())
+}
+
 func NewRecorder(username, instance string) *Recorder {
 	now := time.Now().Local()
-	filepath := path.Join(now.Format("2006-01-02"), uuid.New().String())
+	filepath := path.Join(now.Format("2006-01-02"), generateFilename())
 	ps := strings.Split(filepath, "/")
 	bp := base.Conf.MainConfiguration.DataDir
 	dir := path.Join(bp, strings.Join(ps[:len(ps)-1], "/"))
