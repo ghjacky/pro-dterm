@@ -11,6 +11,6 @@ import (
 func main() {
 	base.ParseFlag()
 	base.Init()
-	base.MigrateDB(&model.MRecord{}, &model.MCommand{})
+	base.MigrateDB(&model.MCommand{}, &model.MRecord{})
 	server.RunForever(base.Conf.MainConfiguration.Listen, gin.DebugMode)
 }

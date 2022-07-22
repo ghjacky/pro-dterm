@@ -18,10 +18,14 @@ func newResponse(code int, message string, data interface{}, extras ...map[strin
 }
 
 func httpRoutes(r *gin.Engine) {
-	tr := r.Group("/api/recorder")
+	tr := r.Group("/api/security_audit/recorder")
 	{
 		tr.GET("", fetchRecords)
 		tr.GET("/:id", getRecord)
+	}
+	tc := r.Group("/api/security_audit/commands")
+	{
+		tc.GET("", fetchCommands)
 	}
 }
 
@@ -30,5 +34,6 @@ func wsRoutes(r *gin.Engine) {
 	{
 		wr.GET("/container/log/:name", streamLog)
 		wr.GET("/container/exec/:name", streamExec)
+		wr.GET("/container/command/:cid/playback", streamRecorderPlayback)
 	}
 }

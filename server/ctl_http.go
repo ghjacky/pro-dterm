@@ -44,3 +44,22 @@ func getRecord(ctx *gin.Context) {
 	}
 	ctx.JSON(http.StatusOK, newResponse(0, "ok", evrcd))
 }
+
+func fetchCommands(ctx *gin.Context) {
+	var pq = model.PageQuery{}
+	if err := ctx.BindQuery(&pq); err != nil {
+		ctx.JSON(http.StatusOK, newResponse(1004, "bad parameters", nil))
+		return
+	}
+	var cmdrcds = model.MCommands{
+		TX:  base.DB(),
+		PQ:  pq,
+		ALL: []model.MCommand{},
+	}
+	if err := cmdrcds.FetchList(); err != nil {
+		ctx.JSON(http.StatusOK, newResponse(1005, err.Error(), nil))
+		base.Log.Errorf("failed to fetch records: %s", err.Error())
+		return
+	}
+	ctx.JSON(http.StatusOK, newResponse(0, "ok", cmdrcds.ALL, map[string]interface{}{"total": cmdrcds.PQ.Total}))
+}

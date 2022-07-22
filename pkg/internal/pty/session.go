@@ -45,14 +45,16 @@ func (kesm *KExecSessionMessage) Parse(p []byte) error {
 }
 
 func NewKExecSessionHandler(wsConn *ws.WSConn, username, instance string) *KExecSessionHandler {
+	rcd := NewRecorder(username, instance)
+	cps := NewStreamParser(username, instance, rcd.Model.Filepath)
 	return &KExecSessionHandler{
 		sizeChan:     make(chan *remotecommand.TerminalSize),
 		clientSocket: wsConn,
 		done:         make(chan struct{}),
 		// buffer:       stream.NewStreamBuffer(BufferCap),
 		message:       &KExecSessionMessage{},
-		cmdParser:     NewStreamParser(username, instance),
-		recorder:      NewRecorder(username, instance),
+		cmdParser:     cps,
+		recorder:      rcd,
 		startParser:   sync.Once{},
 		startRecorder: sync.Once{},
 	}
@@ -129,6 +131,6 @@ func (kesh *KExecSessionHandler) Close() error {
 	}()
 	close(kesh.sizeChan)
 	kesh.done <- struct{}{}
-	base.Log.Infof("connection closed (user: %s - instance: %s)", kesh.recorder.Username, kesh.recorder.Instance)
+	base.Log.Infof("connection closed (user: %s - instance: %s)", kesh.recorder.Model.Username, kesh.recorder.Model.Instance)
 	return kesh.clientSocket.Close()
 }

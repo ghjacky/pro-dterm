@@ -1,12 +1,15 @@
-package main
+package play
 
 import (
 	"bufio"
+	"dterm/base"
+	"dterm/model"
 	"encoding/json"
-	"flag"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 const (
@@ -21,40 +24,35 @@ const (
 
 type EvItem struct {
 	Data []byte `json:"data"`
-	At int64 `json:"at"`
+	At   int64  `json:"at"`
 }
 
-func Play(filepath string) {
+func Play(cid uint, conn *websocket.Conn) error {
+	filepath := getFileByCID(cid)
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	var donec = make(chan bool)
 	f, err := os.OpenFile(filepath, os.O_RDONLY, 0644)
 	if err != nil {
-		//log.Fatalf("couldn't open file %s", filepath)
+		base.Log.Errorf("couldn't open file %s", filepath)
+		return err
 	}
 	defer func() {
-		if err := f.Close(); err != nil {
-			//log.Printf("couldn't close file %s", filepath)
-		}
+		f.Close()
 	}()
 	var allRecoredBytesData = []EvItem{}
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		recordItem := EvItem{}
 		line := scanner.Text()
-		//log.Printf(fmt.Sprintf("%d", sleeping))
 		lineBytes := []byte(line)
-		if err != nil {
-			//log.Fatalf("couldn't parse line string from file %s", filepath)
-		}
-		//log.Printf("got line string: %s", line)
 		if err := json.Unmarshal(lineBytes, &recordItem); err != nil {
-			//log.Fatalf("couldn't parse line bytes: %s", err.Error())
+			base.Log.Fatalf("couldn't parse line bytes: %s", err.Error())
+			return err
 		}
 		allRecoredBytesData = append(allRecoredBytesData, recordItem)
 	}
 
-	//log.Printf("start play")
 	os.Stdout.Write([]byte("\x1bc"))
 	var signal = make(chan int, 1)
 	go func(sc <-chan int) {
@@ -91,21 +89,21 @@ func Play(filepath string) {
 				//	time.Sleep(sleeping / 1)
 				//}
 				sig <- 1
-				_, err := os.Stdout.Write(recordItem.Data)
+				err := conn.WriteMessage(websocket.BinaryMessage, recordItem.Data)
 				lastTime = recordItem.At
 				if err != nil {
-					continue
+					base.Log.Errorf("failed to play: %s", err.Error())
+					return
 				}
 			}
 		}
 	}(signal)
 
 	go func() {
-		key := make([]byte, 1)
 		signal <- 1
 		keySpaceCounter := 0
 		for {
-			_, err := os.Stdin.Read(key)
+			_, key, err := conn.ReadMessage()
 			if err != nil {
 				return
 			}
@@ -127,14 +125,20 @@ func Play(filepath string) {
 		}
 	}()
 	wg.Wait()
+	return nil
 }
 
 func wait(c chan bool) {
 	<-c
 }
 
-func main() {
-	fl := flag.String("f", "", "")
-	flag.Parse()
-	Play(*fl)
+func getFileByCID(cid uint) string {
+	mcmd := model.MCommand{}
+	mcmd.TX = base.DB()
+	mcmd.ID = cid
+	if err := mcmd.Get(); err != nil {
+		base.Log.Errorf("failed to get command by id: %s", err.Error)
+		return ""
+	}
+	return mcmd.RecordFile
 }

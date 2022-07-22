@@ -77,10 +77,11 @@ type StreamParser struct {
 	cmdChan  chan model.MCommand
 	username string
 	instance string
+	filepath string
 	cmd
 }
 
-func NewStreamParser(username, instance string) *StreamParser {
+func NewStreamParser(username, instance, filepath string) *StreamParser {
 	mod := make(chan uint8, 1)
 	mod <- ModeInitial
 	return &StreamParser{
@@ -91,6 +92,7 @@ func NewStreamParser(username, instance string) *StreamParser {
 		cmdChan:  make(chan model.MCommand, 100),
 		username: username,
 		instance: instance,
+		filepath: filepath,
 		cmd: cmd{
 			command:          make([]byte, 0),
 			result:           make([]byte, 0),
@@ -280,6 +282,7 @@ func (sp *StreamParser) calcCmd() {
 	c.Result = string(r)
 	c.At = time.Now().Local().UnixNano()
 	c.TX = base.DB()
+	c.RecordFile = sp.filepath
 	sp.cmdChan <- c
 }
 

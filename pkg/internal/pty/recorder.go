@@ -21,11 +21,9 @@ type EventItem struct {
 }
 
 type Recorder struct {
-	Done     chan struct{}
-	Buffer   chan EventItem
-	Username string
-	Instance string
-	Filepath string
+	Done   chan struct{}
+	Buffer chan EventItem
+	Model  *model.MRecord
 }
 
 func generateFilename() string {
@@ -43,17 +41,15 @@ func NewRecorder(username, instance string) *Recorder {
 		return nil
 	}
 	// 入库
-	var evRcd = model.MRecord{Username: username, Instance: instance, Filepath: filepath}
+	var evRcd = model.MRecord{Username: username, Instance: instance, Filepath: filepath, StartAt: time.Now().Local().UnixNano()}
 	evRcd.TX = base.DB()
 	if err := evRcd.Add(); err != nil {
 		base.Log.Errorf("failed to save recorder file path to db!")
 	}
 	return &Recorder{
-		Done:     make(chan struct{}),
-		Buffer:   make(chan EventItem),
-		Username: username,
-		Instance: instance,
-		Filepath: filepath,
+		Done:   make(chan struct{}),
+		Buffer: make(chan EventItem),
+		Model:  &evRcd,
 	}
 }
 
@@ -71,7 +67,7 @@ func (rcd *Recorder) Write(p []byte) (int, error) {
 }
 
 func (rcd *Recorder) Flush() {
-	file := path.Join(base.Conf.MainConfiguration.DataDir, rcd.Filepath)
+	file := path.Join(base.Conf.MainConfiguration.DataDir, rcd.Model.Filepath)
 	f, e := os.OpenFile(file, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
 	if e != nil {
 		base.Log.Errorf("Failed to open record file: %s", e.Error())
@@ -92,7 +88,11 @@ func (rcd *Recorder) AutoFlushInBg() {
 			rcd.Flush()
 		case <-rcd.Done:
 			rcd.Flush()
-			base.Log.Infof("recorder done (user: %s - instance: %s) !", rcd.Username, rcd.Instance)
+			base.Log.Infof("recorder done (user: %s - instance: %s) !", rcd.Model.Username, rcd.Model.Instance)
+			rcd.Model.EndAt = time.Now().Local().UnixNano()
+			if err := rcd.Model.Update(); err != nil {
+				base.Log.Errorf("failed to save recorder file path to db!")
+			}
 			break
 		}
 	}

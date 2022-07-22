@@ -12,12 +12,14 @@ const (
 
 type MCommand struct {
 	BaseModel
-	Username string `json:"username"`
-	Instance string `json:"instance"`
-	Command  string `json:"command"`
-	Result   string `json:"result"`
-	Level    uint8  `json:"level"`
-	At       int64  `json:"at"`
+	Username   string  `json:"username" gorm:"not null;comment:用户名"`
+	Instance   string  `json:"instance" gorm:"not null;comment:容器实例"`
+	Command    string  `json:"command" gorm:"not null;comment:操作命令"`
+	Result     string  `json:"result" gorm:"comment:命令执行结果"`
+	Level      uint8   `json:"level" gorm:"not null;default:0;comment:命令安全等级"`
+	At         int64   `json:"at" gorm:"not null;comment:命令执行时间点"`
+	RecordFile string  `json:"recordFile" gorm:"type:varchar(255);not null;index"`
+	Record     MRecord `json:"record" gorm:"foreignKey:RecordFile;references:Filepath"`
 }
 
 type MCommands struct {
@@ -38,6 +40,6 @@ func (cmd *MCommand) Get() error {
 	return cmd.TX.First(cmd).Error
 }
 
-func (cmds *MCommands) Fetch() error {
+func (cmds *MCommands) FetchList() error {
 	return cmds.PQ.Query(cmds.TX, &cmds.ALL).Error
 }
