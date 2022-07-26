@@ -318,9 +318,15 @@ func (sp *StreamParser) CalcCMDWithResult() {
 		Username: sp.username,
 		Instance: sp.instance,
 	}
+	if len(sp.cmd.command) > 128 {
+		sp.cmd.command = sp.cmd.command[:128]
+	}
 	cmd.Command = string(sp.cmd.command[len(sp.cmd.prompt):])
 	if len(cmd.Command) <= 0 {
 		return
+	}
+	if len(sp.cmd.result) > 1024 {
+		sp.cmd.result = sp.cmd.result[:1024]
 	}
 	cmd.Result = string(sp.cmd.result)
 	cmd.At = time.Now().Local().UnixNano()
