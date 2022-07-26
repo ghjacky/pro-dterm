@@ -6,6 +6,7 @@ import (
 	"dterm/model"
 	"encoding/json"
 	"os"
+	"path"
 	"sync"
 	"time"
 
@@ -28,10 +29,18 @@ type EvItem struct {
 }
 
 func Play(cid uint, conn *websocket.Conn) error {
-	filepath := getFileByCID(cid)
+	mcmd := model.MCommand{}
+	mcmd.TX = base.DB()
+	mcmd.ID = cid
+	if err := mcmd.Get(); err != nil {
+		base.Log.Errorf("failed to get command by id: %s", err.Error)
+		return err
+	}
+	filepath := mcmd.RecordFile
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	var donec = make(chan bool)
+	filepath = path.Join(base.Conf.MainConfiguration.DataDir, filepath)
 	f, err := os.OpenFile(filepath, os.O_RDONLY, 0644)
 	if err != nil {
 		base.Log.Errorf("couldn't open file %s", filepath)
@@ -50,7 +59,9 @@ func Play(cid uint, conn *websocket.Conn) error {
 			base.Log.Fatalf("couldn't parse line bytes: %s", err.Error())
 			return err
 		}
-		allRecoredBytesData = append(allRecoredBytesData, recordItem)
+		if (mcmd.At - recordItem.At) <= 3*1000*1000*1000 {
+			allRecoredBytesData = append(allRecoredBytesData, recordItem)
+		}
 	}
 
 	os.Stdout.Write([]byte("\x1bc"))
@@ -130,15 +141,4 @@ func Play(cid uint, conn *websocket.Conn) error {
 
 func wait(c chan bool) {
 	<-c
-}
-
-func getFileByCID(cid uint) string {
-	mcmd := model.MCommand{}
-	mcmd.TX = base.DB()
-	mcmd.ID = cid
-	if err := mcmd.Get(); err != nil {
-		base.Log.Errorf("failed to get command by id: %s", err.Error)
-		return ""
-	}
-	return mcmd.RecordFile
 }

@@ -26,7 +26,7 @@ func beforeRequest() gin.HandlerFunc {
 }
 
 func checkAccessTokenFromEasy(token string) map[string]interface{} {
-	return map[string]interface{}{"username": "gmy"}
+	// return map[string]interface{}{"username": "gmy"}
 	url := base.Conf.EasyConfiguration.Schema + "://" + path.Join(base.Conf.EasyConfiguration.Domain, base.Conf.EasyConfiguration.ApiCheckToken)
 	data := map[string]interface{}{
 		"access_token": token,

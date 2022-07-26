@@ -44,7 +44,7 @@ func StreamContainerShell(conn *websocket.Conn, name string, dproxy string, user
 
 func (c *DContainer) streamExec(container string, session pty.PTY) error {
 	id, err := c.DC.Client.ContainerExecCreate(context.Background(), container, types.ExecConfig{
-		User:         "root",
+		User:         "sguser",
 		Privileged:   false,
 		Tty:          true,
 		AttachStdin:  true,
@@ -52,7 +52,7 @@ func (c *DContainer) streamExec(container string, session pty.PTY) error {
 		AttachStderr: true,
 		Detach:       false,
 		DetachKeys:   "ctrl-p,ctrl-q",
-		Cmd:          []string{"/bin/sh", "-i"},
+		Cmd:          []string{"/bin/bash", "-i"},
 		WorkingDir:   "/tmp",
 	})
 	if err != nil {

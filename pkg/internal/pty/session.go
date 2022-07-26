@@ -100,7 +100,7 @@ func (kesh *KExecSessionHandler) Read(p []byte) (int, error) {
 		kesh.sizeChan <- &kesh.message.TermSize
 		return 0, nil
 	} else {
-		// fmt.Printf("[input] - : %s\n\n", string(kesh.message.Raw))
+		// base.Log.Printf("[input] - : %s\n\n", kesh.message.Raw)
 		go kesh.cmdParser.rcvInRaw(kesh.message.Raw)
 		return copy(p, kesh.message.Raw), nil
 	}
@@ -116,7 +116,7 @@ func (kesh *KExecSessionHandler) Write(p []byte) (int, error) {
 		go kesh.cmdParser.StartRecordCmdInBg()
 	})
 	// fmt.Printf("%02x\n", p)
-	// fmt.Printf("[output] - : %s\n\n", string(p))
+	// base.Log.Printf("[output] - : %s\n\n", p)
 	_p := p[:]
 	go kesh.recorder.Write(_p)
 	go kesh.cmdParser.rcvOutRaw(_p)

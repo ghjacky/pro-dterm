@@ -82,6 +82,6 @@ func streamRecorderPlayback(ctx *gin.Context) {
 	defer conn.Close()
 	// playback stream
 	if err := play.Play(uint(commandId), conn); err != nil {
-		base.Log.Error("record playback error: %s", err.Error())
+		base.Log.Errorf("record playback error: %s", err.Error())
 	}
 }
