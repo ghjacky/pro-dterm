@@ -41,5 +41,5 @@ func (cmd *MCommand) Get() error {
 }
 
 func (cmds *MCommands) FetchList() error {
-	return cmds.PQ.Query(cmds.TX, &cmds.ALL).Error
+	return cmds.PQ.Query(cmds.TX, &cmds.ALL, &MCommand{}).Error
 }

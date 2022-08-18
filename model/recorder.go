@@ -7,8 +7,8 @@ type MRecord struct {
 	Instance string `json:"instance" gorm:"not null;comment:登陆主机ip或主机名或容器名称"`
 	Username string `json:"username" gorm:"not null;comment:用户名"`
 	Filepath string `json:"filepath" gorm:"type:varchar(64);not null;uniqueIndex;comment:记录文件相对路径"`
-	StartAt  int64  `json:"startAt" gorm:"not null;comment:记录开始时间"`
-	EndAt    int64  `json:"endAt" gorm:"not null;comment:记录结束时间"`
+	StartAt  int64  `json:"startAt" gorm:"column:start_at;not null;comment:记录开始时间"`
+	EndAt    int64  `json:"endAt" gorm:"column:end_at;not null;comment:记录结束时间"`
 }
 
 type MRecords struct {
@@ -34,5 +34,5 @@ func (rcd *MRecord) Get() error {
 }
 
 func (rcds *MRecords) FetchList() error {
-	return rcds.PQ.Query(rcds.TX, &rcds.ALL).Error
+	return rcds.PQ.Query(rcds.TX, &rcds.ALL, &MRecord{}).Error
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -30,22 +31,57 @@ type PageQuery struct {
 	Total  int64
 }
 
-func (pq *PageQuery) Query(tx *gorm.DB, vs interface{}) *gorm.DB {
+type IModel interface {
+	Add() error
+}
+
+func GetColumnInTagByJsonTag(m IModel, jtag string) string {
+	colPatt := regexp.MustCompile(`column:(?P<column>[^:;"]+);`)
+	col := ""
+	for i := 0; i < reflect.ValueOf(m).Elem().NumField(); i++ {
+		tv := reflect.TypeOf(m).Elem().FieldByIndex([]int{i})
+		jsontag := tv.Tag.Get("json")
+		if jtag == jsontag {
+			col = jsontag
+			gormtag := tv.Tag.Get("gorm")
+			s := colPatt.FindStringSubmatch(gormtag)
+			if len(s) >= 2 {
+				col = s[1]
+			}
+			break
+		}
+	}
+	return col
+}
+
+func (pq *PageQuery) Query(tx *gorm.DB, vs interface{}, _vs IModel) *gorm.DB {
 
 	if pair := strings.Split(pq.Search, ","); len(pair) > 0 {
 		for _, p := range pair {
-			if sl := strings.Split(p, ":"); len(sl) == 2 {
-				switch _vs := reflect.ValueOf(vs).Elem().Interface().(type) {
-				case []interface{}:
-					switch reflect.ValueOf(_vs[0]).Elem().FieldByName(sl[0]).Interface().(type) {
-					case string:
-						tx = tx.Where(fmt.Sprintf("%s like '%%%s%%'", sl[0], sl[1]))
-					case int, int64, int8, int32, float32, float64:
-						n, _ := strconv.Atoi(sl[1])
-						tx = tx.Where(fmt.Sprintf("%s = %d", sl[0], n))
+			col := GetColumnInTagByJsonTag(_vs, strings.Split(p, ":")[0])
+			cts, _ := tx.Debug().Migrator().ColumnTypes(_vs)
+			for _, v := range cts {
+				if v.Name() == col {
+					t := v.DatabaseTypeName()
+					if sl := strings.Split(p, ":"); len(sl) == 2 {
+						switch t {
+						case "bigint", "int", "tinyint", "smallint", "mediumint", "float", "double", "boolean":
+							n, _ := strconv.Atoi(sl[1])
+							tx = tx.Where(fmt.Sprintf("(%s = %d)", col, n))
+						default:
+							tx = tx.Where(fmt.Sprintf("(%s like '%%%s%%')", col, sl[1]))
+						}
+					} else if len(sl) == 3 {
+						switch t {
+						case "bigint", "int", "tinyint", "smallint", "mediumint", "float", "double", "boolean":
+							ln, _ := strconv.Atoi(sl[1])
+							bn, _ := strconv.Atoi(sl[2])
+							tx = tx.Where(fmt.Sprintf("(%s >= %d and %s <= %d)", col, ln, col, bn))
+						default:
+							tx = tx.Where(fmt.Sprintf("(%s >= '%%%s%%' and %s <= '%%%s%%')", col, sl[1], col, sl[2]))
+						}
 					}
-				default:
-					tx = tx.Where(fmt.Sprintf("%s like '%%%s%%'", sl[0], sl[1]))
+					break
 				}
 			}
 		}
