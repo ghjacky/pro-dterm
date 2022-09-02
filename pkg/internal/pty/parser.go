@@ -4,6 +4,7 @@ import (
 	"dterm/base"
 	"dterm/model"
 	"regexp"
+	"time"
 )
 
 const (
@@ -68,7 +69,9 @@ type cmd struct {
 
 type StreamParser struct {
 	inChan    chan []byte
+	doneIn    chan struct{}
 	outChan   chan []byte
+	doneOut   chan struct{}
 	allChan   chan []byte
 	shell     string
 	roundDone chan struct{}
@@ -87,12 +90,14 @@ func NewStreamParser(username, instance, filepath string) *StreamParser {
 	mod <- ModeInitial
 	return &StreamParser{
 		inChan:   make(chan []byte),
+		doneIn:   make(chan struct{}, 1),
 		outChan:  make(chan []byte),
+		doneOut:  make(chan struct{}, 1),
 		allChan:  make(chan []byte),
 		mode:     mod,
 		stage:    StageInitial,
 		done:     make(chan struct{}),
-		cmdChan:  make(chan model.MCommand, 100),
+		cmdChan:  make(chan model.MCommand, 10),
 		username: username,
 		instance: instance,
 		filepath: filepath,
@@ -101,7 +106,7 @@ func NewStreamParser(username, instance, filepath string) *StreamParser {
 			result:           make([]byte, 0),
 			currsorPositions: [2]uint16{0, 0},
 			cursor:           0,
-			done:             make(chan struct{}),
+			done:             make(chan struct{}, 1),
 		},
 	}
 }
@@ -121,11 +126,19 @@ func (sp *StreamParser) StartParse() {
 }
 
 func (sp *StreamParser) rcvInRaw(p []byte) {
-	sp.inChan <- p
+	select {
+	case <-time.After(10 * time.Second):
+		return
+	case sp.inChan <- p:
+	}
 }
 
 func (sp *StreamParser) rcvOutRaw(p []byte) {
-	sp.outChan <- p
+	select {
+	case <-time.After(10 * time.Second):
+		return
+	case sp.outChan <- p:
+	}
 }
 
 func (sp *StreamParser) StartRecordCmdInBg() {

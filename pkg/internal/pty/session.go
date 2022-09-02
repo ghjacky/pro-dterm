@@ -117,9 +117,9 @@ func (kesh *KExecSessionHandler) Write(p []byte) (int, error) {
 	})
 	// fmt.Printf("%02x\n", p)
 	// base.Log.Printf("[output] - : %s\n\n", p)
-	_p := p[:]
-	go kesh.recorder.Write(_p)
-	go kesh.cmdParser.rcvOutRaw(_p)
+	// _p := p[:]
+	go kesh.recorder.Write(p)
+	go kesh.cmdParser.rcvOutRaw(p)
 	return kesh.clientSocket.Write(p)
 }
 

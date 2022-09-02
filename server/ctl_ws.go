@@ -11,13 +11,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var wsupgrader = websocket.Upgrader{
-	ReadBufferSize:    1024 * 1024,
-	WriteBufferSize:   1024 * 1024,
-	EnableCompression: true,
-	CheckOrigin:       func(r *http.Request) bool { return true },
-}
-
 func streamLog(ctx *gin.Context) {
 	name := ctx.Param("name")
 	dproxy := ctx.Query("dproxy")
@@ -28,6 +21,10 @@ func streamLog(ctx *gin.Context) {
 	if len(name) <= 0 {
 		ctx.JSON(http.StatusBadRequest, newResponse(1600, "no container name provided", nil))
 		return
+	}
+	var wsupgrader = websocket.Upgrader{
+		EnableCompression: true,
+		CheckOrigin:       func(r *http.Request) bool { return true },
 	}
 	conn, err := wsupgrader.Upgrade(ctx.Writer, ctx.Request, http.Header{})
 	if err != nil {
@@ -56,6 +53,10 @@ func streamExec(ctx *gin.Context) {
 	if len(user) <= 0 {
 		ctx.JSON(http.StatusBadRequest, newResponse(1600, "no user provided", nil))
 	}
+	var wsupgrader = websocket.Upgrader{
+		EnableCompression: true,
+		CheckOrigin:       func(r *http.Request) bool { return true },
+	}
 	conn, err := wsupgrader.Upgrade(ctx.Writer, ctx.Request, http.Header{})
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, newResponse(1601, err.Error(), nil))
@@ -73,6 +74,10 @@ func streamRecorderPlayback(ctx *gin.Context) {
 	if commandId == 0 {
 		ctx.JSON(http.StatusBadRequest, newResponse(1700, "wrong command id", nil))
 		return
+	}
+	var wsupgrader = websocket.Upgrader{
+		EnableCompression: true,
+		CheckOrigin:       func(r *http.Request) bool { return true },
 	}
 	conn, err := wsupgrader.Upgrade(ctx.Writer, ctx.Request, http.Header{})
 	if err != nil {

@@ -40,6 +40,14 @@ var (
 )
 
 func (sp *StreamParser) StartBashParser() {
+	go func() {
+		select {
+		case <-sp.done:
+			sp.doneIn <- struct{}{}
+			sp.doneOut <- struct{}{}
+			sp.cmd.done <- struct{}{}
+		}
+	}()
 	go sp.HandleOutput()
 	go sp.HandleInput()
 }
@@ -123,6 +131,8 @@ func (sp *StreamParser) HandleInput() {
 				}
 				continue
 			}
+		case <-sp.doneIn:
+			return
 		}
 	}
 }
@@ -192,6 +202,8 @@ func (sp *StreamParser) HandleOutput() {
 			default:
 				continue
 			}
+		case <-sp.doneOut:
+			return
 		}
 	}
 }

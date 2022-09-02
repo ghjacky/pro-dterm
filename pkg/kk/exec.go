@@ -72,6 +72,7 @@ func (c *DContainer) streamExec(container string, session pty.PTY) error {
 		time.Sleep(100 * time.Millisecond)
 		att.Conn.Write([]byte{'\004'})
 		att.Close()
+		session.Close()
 	}()
 
 	var errChan = make(chan error, 2)
@@ -87,7 +88,7 @@ func (c *DContainer) streamExec(container string, session pty.PTY) error {
 		for {
 			resize := session.Next()
 			if resize == nil {
-				break
+				return
 			}
 			c.resizeTty(id.ID, resize.Width, resize.Height)
 		}

@@ -47,7 +47,7 @@ func NewRecorder(username, instance string) *Recorder {
 		base.Log.Errorf("failed to save recorder file path to db!")
 	}
 	return &Recorder{
-		Done:   make(chan struct{}),
+		Done:   make(chan struct{}, 1),
 		Buffer: make(chan EventItem),
 		Model:  &evRcd,
 	}
@@ -74,10 +74,15 @@ func (rcd *Recorder) Flush() {
 		return
 	}
 	defer f.Close()
-	for v := range rcd.Buffer {
-		b, _ := json.Marshal(v)
-		f.Write(b)
-		f.Write([]byte("\r\n"))
+	for {
+		if len(rcd.Buffer) <= 0 {
+			return
+		} else {
+			v := <-rcd.Buffer
+			b, _ := json.Marshal(v)
+			f.Write(b)
+			f.Write([]byte("\r\n"))
+		}
 	}
 }
 
@@ -93,7 +98,7 @@ func (rcd *Recorder) AutoFlushInBg() {
 			if err := rcd.Model.Update(); err != nil {
 				base.Log.Errorf("failed to save recorder file path to db!")
 			}
-			break
+			return
 		}
 	}
 }

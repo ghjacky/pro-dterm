@@ -26,6 +26,7 @@ func (sp *StreamParser) lifecycleForSh() {
 			default:
 				base.Log.Errorf("Unknown lifecycle: %s", sp.mode)
 				sp.cmd.done <- struct{}{}
+				return
 			}
 		case <-sp.done:
 			sp.cmd.done <- struct{}{}
