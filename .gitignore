@@ -1,5 +1,6 @@
 configs/*
 !configs/sample.toml
+!configs/config.toml
 build/*
 !build/build.sh
 !build/Dockerfile

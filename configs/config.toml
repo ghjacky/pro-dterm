@@ -1,0 +1,27 @@
+[main]
+listen = ":8080"
+data_dir = "./"
+
+[log]
+path = ""
+level = "trace"
+max_size = 100
+max_age = 2
+max_backups = 10
+
+[easy]
+schema = "http"
+domain = "127.0.0.1:10081"
+api_check_token = "/api_check_token"
+
+[mysql]
+host = "sg-online-mysql-ops-prd-rw.db.songguo7.com"
+port = 3306
+database = "songguo_ops"
+user = "songguo_admin"
+password = "YmEyODI1NzA2NWZkMzU0ZmIyZTZkZj666,"
+
+# [redis]
+# addr = "127.0.0.1"
+# db = 0
+# password = ""
