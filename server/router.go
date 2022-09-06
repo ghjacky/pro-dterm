@@ -34,6 +34,8 @@ func wsRoutes(r *gin.Engine) {
 	{
 		wr.GET("/container/log/:name", streamLog)
 		wr.GET("/container/exec/:name", streamExec)
+		wr.GET("/k8s/container/log/:name", streamK8sContainerLog)
+		wr.GET("/k8s/container/exec/:name", streamK8sContainerExec)
 		wr.GET("/container/command/:cid/playback", streamRecorderPlayback)
 	}
 }

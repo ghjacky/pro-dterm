@@ -69,6 +69,68 @@ func streamExec(ctx *gin.Context) {
 	}
 }
 
+func streamK8sContainerLog(ctx *gin.Context) {
+	namespace := ctx.Query("namespace")
+	podname := ctx.Param("podname")
+	container := ctx.Query("container")
+	if len(podname) <= 0 {
+		ctx.JSON(http.StatusBadRequest, newResponse(1600, "no podname provided", nil))
+	}
+	if len(container) <= 0 {
+		container = podname
+	}
+	if len(namespace) <= 0 {
+		namespace = "default"
+	}
+	var wsupgrader = websocket.Upgrader{
+		EnableCompression: true,
+		CheckOrigin:       func(r *http.Request) bool { return true },
+	}
+	conn, err := wsupgrader.Upgrade(ctx.Writer, ctx.Request, http.Header{})
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, newResponse(1601, err.Error(), nil))
+		return
+	}
+	defer conn.Close()
+
+	if err := kk.StreamPodLog(conn, namespace, podname, container); err != nil {
+		base.Log.Errorf("streaming log error: %s", err.Error())
+	}
+}
+
+func streamK8sContainerExec(ctx *gin.Context) {
+	namespace := ctx.Query("namespace")
+	podname := ctx.Param("podname")
+	container := ctx.Query("container")
+	user := ctx.GetString("username")
+	if len(podname) <= 0 {
+		ctx.JSON(http.StatusBadRequest, newResponse(1600, "no podname provided", nil))
+	}
+	if len(user) <= 0 {
+		ctx.JSON(http.StatusBadRequest, newResponse(1600, "no user provided", nil))
+	}
+	if len(container) <= 0 {
+		container = podname
+	}
+	if len(namespace) <= 0 {
+		namespace = "default"
+	}
+	var wsupgrader = websocket.Upgrader{
+		EnableCompression: true,
+		CheckOrigin:       func(r *http.Request) bool { return true },
+	}
+	conn, err := wsupgrader.Upgrade(ctx.Writer, ctx.Request, http.Header{})
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, newResponse(1601, err.Error(), nil))
+		return
+	}
+	defer conn.Close()
+
+	if err := kk.StreamPodShell(conn, namespace, podname, user, container); err != nil {
+		base.Log.Errorf("pod exec error: %s", err.Error())
+	}
+}
+
 func streamRecorderPlayback(ctx *gin.Context) {
 	commandId, _ := strconv.Atoi(ctx.Param("cid"))
 	if commandId == 0 {
