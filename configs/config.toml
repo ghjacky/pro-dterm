@@ -10,8 +10,8 @@ max_age = 2
 max_backups = 10
 
 [easy]
-schema = "http"
-domain = "127.0.0.1:10081"
+schema = "https"
+domain = "easyops.songguo7.com"
 api_check_token = "/api_check_token"
 
 [mysql]
